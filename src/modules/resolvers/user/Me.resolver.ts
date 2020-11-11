@@ -1,7 +1,8 @@
+import { User } from "entities/User";
+import { Authentication } from "modules/middleware/Authentication";
+import { UserResponse } from "modules/shared/responses/User";
 import { Ctx, Query, Resolver } from "type-graphql";
-import { User } from "../../../entities/User";
-import { FastifyContext } from "../../../types/Context";
-import { UserResponse } from "../../shared/responses/User";
+import { FastifyContext } from "types/Context";
 
 /**
  * Query to recognise whether session ID is valid.
@@ -11,21 +12,22 @@ import { UserResponse } from "../../shared/responses/User";
 
 @Resolver()
 export class MeResolver {
-	@Query(() => UserResponse, { nullable: true })
-	async Me(@Ctx() ctx: FastifyContext): Promise<UserResponse> {
-		if (!ctx.request.session.userId) {
-			return {
-				errors: [
-					{
-						field: "session",
-						message: "User data could not be found for this session.",
-					},
-				],
-			};
-		}
+  @Authentication()
+  @Query(() => UserResponse, { nullable: true })
+  async me(@Ctx() ctx: FastifyContext): Promise<UserResponse> {
+    const user = await User.findOne({ where: { id: ctx.payload.userId } });
 
-		const user = await User.findOne(ctx.request.session!.userId);
+    if (!user) {
+      return {
+        errors: [
+          {
+            field: "member",
+            message: "Session exists but member entity no longer in database.",
+          },
+        ],
+      };
+    }
 
-		return { user };
-	}
+    return { user };
+  }
 }

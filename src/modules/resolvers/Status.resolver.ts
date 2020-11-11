@@ -2,14 +2,14 @@ import { Query, Resolver, ObjectType, Field } from "type-graphql";
 
 @ObjectType()
 class StatusMessage {
-	@Field()
-	status: string;
+  @Field()
+  status: string;
 
-	@Field()
-	environment: string;
+  @Field()
+  environment: string;
 
-	@Field()
-	time: number;
+  @Field()
+  time: number;
 }
 
 /**
@@ -19,13 +19,13 @@ class StatusMessage {
 
 @Resolver()
 export class StatusResolver {
-	@Query(() => StatusMessage)
-	async Status(): Promise<StatusMessage> {
-		const res = new StatusMessage();
-		res.status = "up";
-		res.environment = process.env.NODE_ENV!;
-		res.time = Date.now();
+  @Query(() => StatusMessage)
+  async status(): Promise<StatusMessage> {
+    const res = new StatusMessage();
+    res.status = "up";
+    res.environment = process.env.NODE_ENV!;
+    res.time = Date.now();
 
-		return res;
-	}
+    return res;
+  }
 }

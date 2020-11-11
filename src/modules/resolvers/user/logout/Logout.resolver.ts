@@ -1,5 +1,5 @@
 import { Ctx, Mutation, Resolver } from "type-graphql";
-import { FastifyContext } from "../../../../types/Context";
+import { FastifyContext } from "types/Context";
 
 /**
  * MUTATION for member logout.
@@ -8,18 +8,18 @@ import { FastifyContext } from "../../../../types/Context";
  */
 @Resolver()
 export class LogoutResolver {
-	@Mutation(() => Boolean)
-	async Logout(@Ctx() ctx: FastifyContext): Promise<Boolean> {
-		return new Promise((res, rej) => {
-			ctx.request.destroySession((err) => {
-				if (err) {
-					ctx.request.log.error(err);
-					return rej(false);
-				}
+  @Mutation(() => Boolean)
+  async logout(@Ctx() ctx: FastifyContext): Promise<Boolean> {
+    const refreshToken = await ctx.reply.jwtSign({});
 
-				ctx.reply.clearCookie("sid");
-				return res(true);
-			});
-		});
-	}
+    ctx.reply.setCookie("jid", refreshToken, {
+      domain: "localhost",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: true,
+    });
+
+    return true;
+  }
 }

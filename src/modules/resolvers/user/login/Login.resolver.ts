@@ -1,9 +1,9 @@
 import argon2 from "argon2";
+import { User } from "entities/User";
+import { LoginResponse } from "modules/shared/responses/Login";
 import { Arg, Ctx, Mutation, Resolver } from "type-graphql";
-import { User } from "../../../../entities/User";
-import { FastifyContext } from "../../../../types/Context";
+import { FastifyContext } from "types/Context";
 import { LoginInput } from "./Login.input";
-import { UserResponse } from "../../../shared/responses/User";
 
 /**
  * MUTATION for User login.
@@ -13,41 +13,60 @@ import { UserResponse } from "../../../shared/responses/User";
  */
 @Resolver()
 export class LoginResolver {
-	@Mutation(() => UserResponse, { nullable: true })
-	async Login(
-		@Arg("data") { email, password }: LoginInput,
-		@Ctx() ctx: FastifyContext
-	): Promise<UserResponse> {
-		const user = await User.findOne({ where: { email } });
+  @Mutation(() => LoginResponse, { nullable: true })
+  async login(
+    @Arg("data") { email, password }: LoginInput,
+    @Ctx() ctx: FastifyContext,
+  ): Promise<LoginResponse> {
+    const user = await User.findOne({ where: { email } });
 
-		// Unable to find user in database.
-		if (!user) {
-			return {
-				errors: [
-					{
-						field: "emailOrPassword",
-						message: "Email or password is incorrect.",
-					},
-				],
-			};
-		}
+    // Unable to find user in database.
+    if (!user) {
+      return {
+        errors: [
+          {
+            field: "emailOrPassword",
+            message: "Email or password is incorrect.",
+          },
+        ],
+      };
+    }
 
-		const valid = await argon2.verify(user.password, password);
+    const valid = await argon2.verify(user.password, password);
 
-		// Password is incorrect.
-		if (!valid) {
-			return {
-				errors: [
-					{
-						field: "emailOrPassword",
-						message: "Email or password is incorrect.",
-					},
-				],
-			};
-		}
+    // Password is incorrect.
+    if (!valid) {
+      return {
+        errors: [
+          {
+            field: "emailOrPassword",
+            message: "Email or password is incorrect.",
+          },
+        ],
+      };
+    }
 
-		ctx.request.session.userId = user.id;
+    const refreshToken = await ctx.reply.jwtSign(
+      { userId: user.id },
+      { expiresIn: "7d" },
+    );
 
-		return { user };
-	}
+    ctx.reply.setCookie("jid", refreshToken, {
+      domain: "localhost",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: true,
+    });
+
+    const accessToken = await ctx.reply.jwtSign(
+      { userId: user.id },
+      { expiresIn: "15m" },
+    );
+
+    // For when using sessions
+    // ctx.request.session.userId = user.id;
+
+    return { user, accessToken };
+  }
 }
